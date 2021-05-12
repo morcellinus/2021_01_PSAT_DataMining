@@ -1,0 +1,273 @@
+---
+title: "P-SAT 1주차 패키지 과제"
+author: "Jinmo Lee"
+date: '2021 3 11 '
+output: html_document
+---
+# 전처리
+## 문제 0
+
+```{r}
+library(plyr)
+library(tidyverse)
+library(data.table)
+setwd("C:/Users/samsung/Desktop/PSAT/1주차패키지")
+data<-fread('data.csv')
+data
+```
+
+## 문제 1
+```{r}
+data%>%
+  str()
+colSums(is.na(data))
+uq<-c(nrow(unique(data[,1])),
+nrow(unique(data[,2])),
+nrow(unique(data[,3])),
+nrow(unique(data[,4])),
+nrow(unique(data[,5])),
+nrow(unique(data[,6])),
+nrow(unique(data[,7])),
+nrow(unique(data[,8])))
+uq<-uq-1;uq
+unique(data[,1])
+unique(data[,2])
+unique(data[,3])
+unique(data[,4])
+unique(data[,5])
+unique(data[,6])
+unique(data[,7])
+unique(data[,8])
+```
+
+## 문제 2-1
+```{r}
+data<-data%>%
+  filter(!is.na(confirmed_date))
+
+data
+```
+
+## 문제 2-2
+
+```{r}
+data<-data[age!=""&sex!=""&patient_id!=""&country!=""&province!=""&city!=""&state!=""&as.character(confirmed_date)!="",]
+data
+data%>%
+  is.na%>%
+  colSums
+
+uq1<-c(nrow(unique(data[,1])),
+nrow(unique(data[,2])),
+nrow(unique(data[,3])),
+nrow(unique(data[,4])),
+nrow(unique(data[,5])),
+nrow(unique(data[,6])),
+nrow(unique(data[,7])),
+nrow(unique(data[,8])))
+uq1
+unique(data[,1])
+unique(data[,2])
+unique(data[,3])
+unique(data[,4])
+unique(data[,5])
+unique(data[,6])
+unique(data[,7])
+unique(data[,8])
+```
+
+## 문제 3
+```{r}
+data<-data%>%
+  filter(country=='Korea')
+data<-data[,-'country'];data
+```
+
+## 문제 4
+```{r}
+data$province<-data$province%>%
+  revalue(c('서울'='서울특별시','부산'='부산광역시','대구'='대구광역시','인천'='인천광역시','대전'='대전광역시','세종'='세종특별자치시','울산'='울산광역시','제주도'='제주특별자치도'))
+data
+```
+
+## 문제 5
+```{r}
+data$confirmed_date<-data$confirmed_date%>%
+  as.Date
+```
+
+## 문제 6
+```{r}
+confirmed_number<-data%>%
+  group_by(confirmed_date)%>%
+  summarise(count=n())
+
+confirmed_number
+```
+
+## 문제 7
+```{r}
+wday<-weekdays(data$confirmed_date)
+wday<-ifelse(wday=='토요일'|wday=='일요일','주말','주중')
+wday[1:20]
+```
+
+## 문제 8
+```{r}
+confirmed_per_age<-data%>%
+  group_by(age,confirmed_date)%>%
+  summarise(count=n())
+confirmed_per_age
+tapply(confirmed_per_age$count,confirmed_per_age$age,summary)
+  
+```
+
+# 시각화
+## 문제 1
+```{r}
+maxnumber<-max(confirmed_number$count)
+maxdate<-confirmed_number$confirmed_date[which.max(confirmed_number$count)]
+
+confirmed_number%>%
+  ggplot(aes(confirmed_date,count))+theme_classic()+geom_line(color='lightblue')+labs(title='코로나 확진자수 추이\n-국내인 기준' )+theme(plot.title=element_text(hjust=0.5,face='bold'))+annotate(geom='point',x=maxdate,y=maxnumber,color='navy')+annotate(geom='text',x=confirmed_number$confirmed_date[11],y=maxnumber,label=sprintf('%s(%d명)',maxdate,maxnumber),color='navy',fontface=2)
+
+
+```
+
+## 문제 1-2
+```{r}
+data%>%
+  group_by(province,confirmed_date)%>%
+  summarise(count=n())%>%
+  ggplot(aes(confirmed_date,count))+geom_line(aes(color=province))+facet_wrap(~province,nrow=4,ncol=4)
+
+```
+
+### 문제 자체와 그래프의 모양이 다른데, 위 그래프가 문제의 그래프보다 더 좋은 정보를 담고 있다.
+
+### 문제에선 clearly '지역별 확진자 추세'를 그래프화 할 것을 요구하고 있다.
+
+### 따라서 x축은 시간, y축은 각 지역 별 확진자 수가 들어가는 것이 옳다
+
+### 그런데 문제에서 제시된 그래프는 그래프의 높이가 각 지역별로 비슷한 것을 알 수 있는데, 이는 실제 데이터와 다르다.
+
+### 일례로, 데이터 안에서 강원도의 하루 최대 확진자 수는 9명이다. 그런데 문제의 그래프에선 100이 훌쩍 넘는 숫자까지 보여주고 있다.
+
+### 따라서 문제 오류 혹은 그리 유의미하지 않은 정보를 담은 그래프라고 유추해본다. 
+
+## 문제 2
+```{r}
+data%>%
+  ggplot(aes(y=province))+geom_bar(aes(fill=state,colour=state),alpha=0.4,position=position_stack(reverse=FALSE))+labs(x='확진자수',y='지역')
+```
+
+## 문제 3
+```{r}
+confirmed_per_age%>%
+  ggplot(aes(age,count))+theme_classic()+geom_boxplot(aes(fill=age,colour=age),alpha=0.4,outlier.shape=NA)+stat_boxplot(geom='errorbar',aes(colour=age))+labs(y='일단위 확진자수')
+```
+
+## 문제 3-2
+```{r}
+confirmed_per_age%>%
+  aov(formula=count~age)%>%
+  summary()
+```
+```{r,echo=FALSE}
+print('귀무가설 H0을 <각 나이대별 확진자 수는 같다>라 설정하고, 대안가설 H1을 <각 나이대별 확진자 수는 같지 않다>로 설정한 후 일원분산분석을 실시한다.')
+print('이 경우 P-value는 8.19e-14로, 그 값이 매우 작다.')
+print('따라서 일원분산분석 결과 귀무가설 <각 나이대별 확진자 수는 같다>를 기각해야만 하며,')
+print('이는 곧 <각 나이대별 확진자 수는 유의미하게 다르다>라는 해석이 된다.')
+```
+
+```{r}
+library(raster)
+library(rgeos)
+library(maptools)
+library(rgdal)
+korea<-readOGR('TL_SCCO_CTPRVN.shp')
+korea_map<-korea%>%
+  spTransform(CRS('+proj=longlat'))
+korea_map<-fortify(korea_map)
+GZ<-data.frame(province='광주광역시',count=0)
+province_confirmed<-data%>%
+  group_by(province)%>%
+  summarise(count=n())%>%
+  rbind(GZ)
+province_confirmed<-arrange(province_confirmed,province)
+province_confirmed<-cbind(province_confirmed,id=matrix(0:16,17,1))
+pleasework<-merge(korea_map,province_confirmed,by='id')
+ggplot()+geom_polygon(data=pleasework,aes(x=long,y=lat,group=group,fill=count))+scale_fill_gradient(low='white',high='red')+labs(title='지역별 누적 확진자 수')
+```
+
+
+# 회귀모델
+## 문제 1
+```{r}
+library(corrplot)
+library(caret)
+library(MLmetrics)
+library(MASS)
+Boston%>%
+  cor()%>%
+  corrplot(method='number',type='upper')
+```
+
+## 문제 2
+```{r}
+Boston%>%
+  gather(-medv,key='variables',value='values')%>%
+  group_by(variables,medv)%>%
+  summarise(values=values)%>%
+  ggplot(aes(values,medv))+geom_point()+facet_wrap(~variables,nrow=4,ncol=4,scales='free')+stat_smooth(method='lm',color='lightblue',size=1)+labs(title='Scatter plot of dependent variables vs Median Value(medv)')+theme(plot.title=element_text(hjust=0,face='bold'))
+```
+
+## 문제 3
+```{r}
+set.seed(1234)
+train_idx<-createDataPartition(Boston$medv, p=.7, times=1, list=FALSE)
+test_data<-Boston[-train_idx,]
+train_data<-Boston[train_idx,]
+test_y<-test_data$medv
+head(test_data,20)
+head(train_data,20)
+
+```
+
+## 문제 3-2
+```{r}
+linear_model<-train(medv~.,data=train_data,method='lm')
+summary_lm<-linear_model %>%
+  summary()
+summary_lm
+
+cat('회귀분석 결과 medv 종속변수에 유의미한 영향력을 갖지 못하는 2개의 독립 변수가 발견되었다','\n','그 변수는 indus 변수와 age변수이다.','\n','이 두 개의 독립변수는 각각의 p-value가 0.924, 0.36으로 상당히 컸고, 따라서 medv변수의 증감에 영향을 끼치지 못한다고 해석할 수 있다.')
+cat('그 외 변수들 중 crim, nox, dis, tax, ptratio, lstat 변수는 medv 변수와 음의 선형 상관관계를 가진다.','\n','그 중 nox 변수의 변화에 따른 medv 변수의 변화가 가장 큰데, nox 변수가 1unit 늘어날 수록 medv 변수는 -17.6 unit만큼 감소함을 알 수 있다.')
+cat('이와 반대로 zn, chas, rm, rad, black 변수는 medv 변수와 양의 선형 상관관계를 갖는다.','\n','이 중 rm 변수가 1unit 증가 할 때 medv 변수는 3.44 unit 증가한다.')
+
+predict_lm<-predict(linear_model,test_data)
+
+RMSE<-RMSE(predict_lm,test_y)
+RMSE<-as.double(RMSE)
+sprintf('test에 대한 RMSE는 %.3f 이다.',RMSE)
+
+```
+## 문제 3-3
+```{r}
+cat(' 모델의 RMSE는 Reducible error와 Irriducible error로 나뉜다.','\n','여기서 Irriducible error는 다시 모델분산+모델편향으로 이루어진다.','\n','모델분산과 모델편향은 tradeoff 관계로, 모델의 complexity에 따라 한 쪽이 줄어들면 한 쪽은 커진다.','\n','따라서 적절한 모델 평가 도구를 사용해 모델분산+모델편향의 값이 가장 낮은 모델을 찾아내는 것이 중요하다','\n','Cross Validation 으로 모델을 평가하거나 Forward Selection 등의 변수 선택 과정 등을 거칠 수 있다.')
+```
+
+## 문제 4
+```{r}
+estimates<-as.data.frame(summary_lm$coefficients[,1])
+names(estimates)<-'betas'
+round_betas<-round(estimates$betas,2)
+intercept_variables<-rownames(estimates)
+estimates%>%
+  ggplot(aes(x=betas,y=reorder(intercept_variables,betas)))+theme_classic()+
+  geom_col(fill=ifelse(estimates$betas>5,'red',ifelse(estimates$betas>-2&estimates$betas<5,'yellow','blue')),alpha=0.2,color=ifelse(estimates$betas>5,'red',ifelse(estimates$betas>-2&estimates$betas<5,'yellow','blue')))+
+  geom_text(aes(label=round_betas),position=position_stack(vjust=.5))+labs(x='value',y='intercept and variables')+coord_fixed(ratio=2)
+
+
+
+```
