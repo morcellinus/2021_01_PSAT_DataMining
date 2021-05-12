@@ -1,0 +1,264 @@
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 4 23 '
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+data <- data.table::fread('C:/Users/samsung/Desktop/wine21_데이터셋.csv')
+
+data$name_kor <- str_trim(data$name_kor)
+data$name_eng <- str_trim(data$name_eng)
+
+data$producer_eng <- str_trim(data$producer_eng)
+data$producer_kor <- str_trim(data$producer_kor)
+
+data$region_eng <- str_trim(data$region_eng)
+data$region_kor <- str_trim(data$region_kor)
+
+data$style_eng <- str_trim(data$style_eng)
+data$style_kor <- str_trim(data$style_kor)
+
+data
+
+write.csv(data, 'C:/Users/samsung/Desktop/wine21_데이터셋_간격수정.csv')
+
+data_by_nation <- data %>%
+  select(region_kor, region_eng, name_kor, name_eng) %>%
+  arrange(region_kor)
+
+data_by_nation %>%
+  group_by(region_kor) %>%
+  summarise(count = n()) %>%
+  ggplot() + theme_classic() + geom_col(aes(x=region_kor, y=count, color = region_kor, fill = region_kor)) + theme(legend.position = 'none')
+
+data_by_style <- data %>%
+  select(style_kor) %>%
+  group_by(style_kor) %>%
+  summarise(count= n()) %>%
+  arrange(desc(count))
+
+data_by_style %>%
+  mutate(에일 = str_extract(style_kor, '에일')) %>%
+  mutate(라거 = str_extract(style_kor, '라거')) %>%
+  filter(라거 == '라거') %>%
+  ggplot() + theme_classic() + geom_col(aes(x=style_kor, y=count, color = style_kor, fill = style_kor))
+
+
+```
+
+```{r, fig.width = 23, fig.height = 10}
+data_by_nation %>%
+  group_by(region_kor) %>%
+  summarise(count = n()) %>%
+  ggplot() + theme_classic() + geom_col(aes(x=region_kor, y=count, color = region_kor, fill = region_kor)) + theme(legend.position = 'none')
+
+data %>%
+  group_by(style_kor) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  filter(count > 10) %>%
+  ggplot() + theme_classic() + geom_col(aes(x=style_kor, y=count, color = style_kor, fill = style_kor)) + theme(legend.position = 'none')
+```
+
+```{r}
+data <- data %>%
+  mutate_all(na_if, "")
+
+write.csv(data, 'C:/Users/samsung/Desktop/wine21_데이터셋_간격 및 빈칸수정.csv')
+
+data %>%
+  arrange((apv))
+
+view(data)
+
+data <- data.table::fread('C:/Users/samsung/Desktop/wine21_데이터셋_간격 및 빈칸수정.csv')
+
+data %>%
+  mutate(p1 = str_extract(price, '^[0-9]{1,2},[0-9]{3,4}')) %>%
+  mutate(p2 = str_extract(price, '[0-9]{1,2},[0-9]{3,4}원$'))
+
+data$apv[24] <- '5.5'
+data$apv[25] <- '4.5'
+data$apv[90] <- '5.5'
+data$apv[5] <- '0.125'
+
+data$apv <- as.numeric(data$apv)
+
+price <- data$price
+
+price <- as.data.frame(price)
+
+price1 <-price %>%
+  mutate(p1 = str_extract(price, '^[0-9]{1,2},[0-9]{3,4}')) %>%
+  mutate(p2 = str_extract(price, '[0-9]{1,2},[0-9]{3,4}원$')) %>%
+  mutate(p2 = str_extract(p2, '^[0-9]{1,2},[0-9]{3,4}'))
+
+price1$p1 <- as.numeric(price1$p1)
+
+price1 <- price1 %>%
+  mutate(p11 = str_extract(p1, '[0-9]{1,2}')) %>%
+  mutate(p12 = str_extract(p1, '[0-9]{3,4}')) %>%
+  mutate(p1 = str_c(p11, p12)) %>%
+  mutate(p21 = str_extract(p2, '[0-9]{1,2}')) %>%
+  mutate(p22 = str_extract(p2, '[0-9]{3,4}')) %>%
+  mutate(p2 = str_c(p21, p22)) %>%
+  select(price, p1, p2)
+
+price1$p1 <- as.numeric(price1$p1)
+price1$p2 <- as.numeric(price1$p2)
+
+price1 <- price1 %>%
+  mutate(price_mean = (p1+p2)/2) %>%
+  select(price_mean)
+
+data %>%
+  mutate(price = price1)
+
+data <- cbind(data, price1)
+
+data <- data[,2:15]
+
+data <- data %>% 
+  select(-price) %>%
+  rename(price = price_mean) %>%
+  select(V1, name_kor, name_eng, producer_kor, producer_eng, region_kor, region_eng, style_kor, style_eng, apv, ibu, price, info)
+
+data
+
+write.csv(data, 'C:/Users/samsung/Desktop/wine21_데이터셋_apv_price_수정.csv')
+
+idx <- which(is.na(data$ibu))
+
+ibu_na <- data%>%
+  select(name_kor, ibu)
+
+ibu_na <- ibu_na[idx]
+
+write.csv(ibu_na, 'C:/Users/samsung/Desktop/ibuNA.csv')
+
+data[which((is.na(data$apv)))] %>%
+  select(name_kor)
+
+
+```
+
+```{r, fig.width = 20}
+data <- data.table::fread('C:/Users/samsung/Desktop/wine21_데이터셋_apv_price_수정.csv')
+
+style_EDA <- data %>%
+  select(style_kor) %>%
+  group_by(style_kor) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+style_EDA %>%
+  filter(count >= 10) %>%
+  ggplot(aes(x=reorder(style_kor, -count), y = count), fontface = 'bold') + theme_classic() + geom_col(fill = 'tan', color = 'tan') + theme(axis.text.x=element_text(angle=45, hjust=1), axis.text = element_text(face = 'bold')) + labs(x = '맥주 스타일', y = '개수', fontface = 'bold') + theme(legend.position = 'none') + geom_text(aes(x = style_kor, label = ifelse(count>34, str_c(round(count*100/sum(count),2),'%'), '')), fontface = 'bold')
+
+
+data <- data[,2:14]
+
+data %>%
+  filter(apv <1)
+```
+
+```{r}
+style_EDA <- style_EDA %>%
+  mutate(종류 = str_extract(style_kor, '(에일|라거|스타우트|포터)'))
+
+idx <- which(is.na(style_EDA$종류))
+
+
+
+style_EDA[idx,3] <- c('필스너', '랑비크','에일', '스타우트', '에일', '에일', '밀맥주', '무알콜맥주', '라거', '에일', '밀맥주', '에일', '랑비크', '밀맥주', '밀맥주', '에일', '에일', '밀맥주', '라거', '발리와인', '라거', '에일', '라거', '라거', '쾰쉬', '에일', '에일', '밀맥주', '에일', '랑비크', '라거', '라거', '필스너', '라거', '에일', '에일', '에일', '라거','에일','라거', '라거', '라거', '에일', '밀맥주', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '에일', '밀맥주', '라거', '에일', '에일', '에일', '에일', '에일', '라거', '에일', '에일', '에일', '밀맥주', '랑비크', '필스너', '에일', '라거', '에일', '라거')
+
+style_EDA %>%
+  group_by(종류) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  mutate(percent = str_c(round(count*100/sum(count),2), '%')) %>%
+  ggplot(aes(x=reorder(종류, -count), y=count, fontface = 'bold')) + theme_classic() + geom_col(fill = 'tan', color = 'tan', alpha = 0.9) + theme(axis.text.x=element_text(angle=45, hjust=1), axis.text = element_text(face = 'bold')) + geom_text(aes(x = 종류, label = percent, fontface = 'bold')) + labs(x='종류', y='개수', fontface = 'bold') 
+```
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(maps)
+
+data <- data.table::fread('C:/Users/samsung/Desktop/wine21_데이터셋_apv_price_수정.csv')
+
+data <- data[, 2:14]
+
+by_nations <- data %>%
+  group_by(region_kor) %>%
+  summarise(count = n())
+
+world <- map_data('world')
+ggplot(world, aes( x = long, y = lat, group = group)) + geom_polygon(aes(fill = ))
+
+install.packages('rworldmap')
+library(rworldmap)
+worldmap <- getMap()
+mapCountryData(worldmap, nameColumnToPlot = 'continent')
+
+install.packages('countrycode')
+install.packages('gapminder')
+install.packages('ggthemes')
+library(countrycode)
+library(gapminder)
+library(ggthemes)
+
+world <- world %>%
+  filter(region != 'Antartica') %>%
+  mutate(continent = countrycode(sourcevar = region,
+                                 origin = 'country.name',
+                                 destination = 'continent'),
+         continent = case_when(
+           continent == 'Oceania' ~ 'Asia',
+           TRUE ~ as.character(continent)
+         ) %>% as.factor %>%
+           fct_relevel('Asia', 'Americas', 'Europe', 'Africa')
+         ) %>%
+  drop_na(continent)
+
+
+by_nations %>%
+  mutate(대륙 = c('유럽', '오세아니아', '아시아', '아시아', '유럽', '유럽', '아시아', '유럽', '남아메리카', '유럽',
+                '북아메리카', '아시아', '유럽', '아시아', '유럽', '유럽', '유럽', '아시아', '남아메리카', '유럽',
+                '유럽', '유럽', '유럽', '유럽', '아시아', '아시아', '아시아', '아시아', '유럽', '북아메리카', 
+                '아시아', '유럽', '유럽', '유럽', '유럽', '유럽', '아시아', '오세아니아')) %>%
+  group_by(대륙) %>%
+  summarise(count2 = sum(count)) %>%
+  ggplot(aes(x = reorder(대륙, -count2), y = count2)) + theme_classic() +
+  geom_col(fill = 'tan', colour = 'tan') +
+  theme(axis.text.x=element_text(angle=45, hjust=1), axis.text = element_text(face = 'bold')) + geom_text(aes(x = 대륙, label = str_c(round(count2*100/sum(count2), 2), '%'), fontface = 'bold')) + labs(x='대륙', y='개수', fontface = 'bold') 
+  
+  
+  
+  ggplot(data = world) + geom_map(map = world, aes(long, lat, group = group, map_id = region, fill = count2, color = count2)) + theme_map() + coord_map(xlim = c(-180, 180),ylim = c(-200, 200))
+
+
+
+```
+
+```{r, fig.width = 16}
+data <- data[,2:14]
+
+data %>%
+  group_by(region_kor) %>%
+  summarise(개수 = n()) %>%
+  ggplot(aes(x = reorder(region_kor, -개수), y = 개수)) + theme_classic() + geom_col(color = 'tan', fill = 'tan') +
+  theme(axis.text.x=element_text(angle=45, hjust=1), axis.text = element_text(face = 'bold')) + geom_text(aes(x = region_kor, label = ifelse(개수 > 50, str_c(round(개수*100/sum(개수),2), '%'), ''), fontface = 'bold')) + labs(x='국가', y='개수', fontface = 'bold') 
+```
+
+```{r}
+library(ggmap)
+install.packages('maps')
+library(maps)
+
+world <- map_data('world')
+ggplot(world, aes( x = long, y = lat, group = group)) + geom_polygon(aes(fill = ))
+```
