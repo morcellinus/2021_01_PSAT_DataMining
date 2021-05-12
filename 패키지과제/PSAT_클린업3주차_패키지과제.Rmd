@@ -1,0 +1,348 @@
+---
+title: "PSAT 3주차 패키지 과제 "
+author: "Jinmo Lee"
+date: '2021 3 25 '
+output: html_document
+---
+
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 3 22 '
+output: html_document
+---
+# CH1 전처리
+## 문제 0
+
+```{r warning=FALSE}
+library(tidyverse)
+library(data.table)
+library(gridExtra)
+
+setwd("C:/Users/samsung/Desktop/PSAT/3주차패키지")
+data<-fread('data.csv')
+test<-fread('test.csv')
+```
+
+## 문제 1
+
+```{r warning=FALSE, message=FALSE}
+# bmi 변수 numeric 자료형으로 변환
+data$bmi<-data$bmi%>%
+  as.numeric()
+# mean 값을 구해서 NA값을 mean imputation으로 대체
+means<-mean(data$bmi,na.rm=T)
+data$bmi<-replace_na(data$bmi,means)
+head(data)
+```
+
+## 문제 2
+
+```{r warning=FALSE, message=FALSE}
+# 변수들의 문자형 여부를 확인
+data[,sapply(data,is.character)]
+# 확인된 문자형 변수를 명목형 변수로 변경
+data<-data%>%
+  mutate_at(vars(gender,ever_married,work_type,Residence_type,smoking_status),as.factor)
+str(data)
+```
+
+## 문제 3
+
+```{r warning=FALSE, message=FALSE}
+# select function으로 id 변수 삭제
+data<-data%>%
+  select(-id)
+```
+
+## 문제 4
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=16}
+# 기존의 데이터를 stroke 여부에 따라 구분
+data1<-data%>%
+  filter(stroke==1)
+data2<-data%>%
+  filter(stroke==0)
+# 범주형 변수이지만 자료형이 수치인 변수들을 factor 변수로 변환
+data1<-data1%>%
+  mutate_at(vars(heart_disease,hypertension),as.factor)
+data2<-data2%>%
+  mutate_at(vars(heart_disease,hypertension),as.factor)
+# stroke 여부 별 데이터에서 범주형 변수만을 추출해서 별도 저장
+factor1<-data1%>%
+  select(c(where(is.factor),stroke))
+factor2<-data2%>%
+  select(c(where(is.factor),stroke))
+# 범주형 변수의 분포를 알기 위해 변수별 값의 분포를 count하여 저장
+summ1<-factor1%>%
+  gather(-stroke,key='variable',value='values')%>%
+  group_by(variable,values)%>%
+  summarise(n=n())
+summ2<-factor2%>%
+  gather(-stroke,key='variable',value='values')%>%
+  group_by(variable,values)%>%
+  summarise(n=n())
+# 시각화
+p1<-summ1%>%
+  ggplot()+theme_classic()+geom_col(aes(x=(summ1$n)/199,y=summ1$variable,fill=summ1$values),alpha=0.5)+labs(y='variable',x=NULL,title='Stroke: 1')+theme(legend.position='bottom',legend.title=element_blank(),plot.title=element_text(hjust=0.5,face='bold'))
+p2<-summ2%>%
+  ggplot()+theme_classic()+geom_col(aes(x=(summ2$n)/3888,y=summ2$variable,fill=summ2$values),alpha=0.5)+labs(y='variable',x=NULL,title='Stroke: 0')+theme(legend.position='bottom',legend.title=element_blank(),plot.title=element_text(hjust=0.5,face='bold'))
+# 그래프를 동시에 나타내기 위해 section divide
+grid.arrange(p1,p2,ncol=2)
+```
+
+### 위의 두 그래프는 타겟(stroke)값 별 범주형 변수의 분포를 보여준다.
+### 각 변수별로 구성요소가 색깔의 차이를 통해 구분되어 있다.
+### 예를 들어 stroke가 1일 때 ever_married 변수는 'Yes'와 'No'로 이루어져있다.
+### 각 대답의 분포는 'Yes'가 약 90%, 'No'가 10%임을 그래프를 통해 알 수 있다.
+### 그러나 같은 변수에 대해 stroke가 0일 때에는 'Yes'가 약 63%, 'No'가 약 37%임을 알 수 있다.
+### 이렇게 타겟 별 동일 변수의 구성요소 분포를 비교하며 유의미한 해석이 가능하다.
+### 예를 들어 stroke를 경험한 사람 중 90%가 결혼한 이력이 있는 반면, stroke를 경험하지 않은 사람 중에는 약 60%만 결혼 경험이 있다.
+
+
+## 문제 5
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=11}
+# stroke 여부대로 나뉜 data set에서 수치형 변수만을 추출해 저장
+numeric1<-data1%>%
+  select(c(where(is.numeric),-stroke))
+numeric2<-data2%>%
+  select(c(where(is.numeric),-stroke))
+# 수치형 변수의 분포를 시각화하기 위해 변수별 그룹화
+summ3<-numeric1%>%
+  gather(key='variable',value='values')%>%
+  group_by(variable,values)
+summ4<-numeric2%>%
+  gather(key='variable',value='values')%>%
+  group_by(variable,values)
+# 시각화
+p3<-summ3%>%
+  ggplot()+theme_classic()+geom_density(aes(x=values,color=variable))+labs(x='variable',title='Stroke: 1')+theme(legend.title=element_blank(),plot.title=element_text(hjust=0.5,face='bold'))
+p4<-summ4%>%
+  ggplot()+theme_classic()+geom_density(aes(x=values,color=variable))+labs(x='variable',title='Stroke: 0')+theme(legend.title=element_blank(),plot.title=element_text(hjust=0.5,face='bold'))
+# 그래프를 동시에 노출시키기 위해 section divide
+grid.arrange(p3,p4,nrow=2)
+```
+
+### 위의 그래프는 타겟(stroke) 별 수치형 변수의 분포를 시각화해서 보여준다.
+### 예를 들어 bmi 변수의 경우 stroke 여부에 따른 분포의 변화가 크지 않다.
+### 그러나 age 변수의 경우 stroke를 경험한 쪽은 60세 이상의 분포가 많은데 비해 stroke를 경험하지 않은 쪽은 비교적 골고루 나이대가 분포되어 있다.
+
+## 문제 6
+
+```{r warning=FALSE, message=FALSE}
+# 기존데이터에서 범주형 변수임에도 문자형으로 표시되던 변수를 factor로 변환
+data$hypertension<-as.factor(data$heart_disease)
+data$heart_disease<-as.factor(data$heart_disease)
+# 기존 데이터에서 factor 변수만을 추출 후 따로 저장
+data_factors<-data%>%
+  select(where(is.factor),stroke)
+# factor 변수들의 변수명을 element로 갖는 dataframe 생성
+df<-as.data.frame(colnames(data_factors)[1:7])
+colnames(df)<-c('cate_var')
+# 앞서 만든 dataframe에 chi 변수 생성
+df$chi<-NA
+chi<-NULL
+# for loop을 사용한 독립성 검정 진행
+for (i in 1:7){
+  x<-data_factors[[i]]
+  y<-data_factors$stroke
+  result<-chisq.test(x,y,correct=F)
+  if (result$p.value>0.05){
+    chi<-c(chi,'accept')
+  }
+  else{
+    chi<-c(chi,'denied')
+  }
+}
+# chi 변수에 검정 결과 삽입
+df$chi<-chi
+df
+```
+
+## 문제 7
+
+```{r warning=FALSE, message=FALSE}
+# id 변수 제거
+data<-data%>%
+  select(-c(gender,Residence_type))
+```
+
+## 문제 8
+
+```{r warning=FALSE, message=FALSE}
+# train data와 동일한 form이 되도록 test dataset 전처리 진행
+test$bmi<-test$bmi%>%
+  as.numeric()
+means<-mean(test$bmi,na.rm=T)
+test$bmi<-replace_na(test$bmi,means)
+test<-test%>%
+  select(-c(id,gender,Residence_type))
+test<-test%>%
+  mutate_at(vars(hypertension,heart_disease,ever_married,work_type,smoking_status),as.factor)
+head(test)
+```
+
+# CH2 Catboost
+
+```{r warning=FALSE, include=FALSE}
+library(catboost)
+library(caret)
+library(MLmetrics)
+```
+
+## 문제 0
+### catboost는 최근에 등장한 gradient descent model로서, 다른 gbm계열 알고리즘보다 좋은 성능을 보인다.
+### 기존의 gbm 계열 알고리즘 (xgboost, lgbm)은 새로운 트리를 만들 때 이전 모델에 쓰인 data를 gradient로 쓰기 때문에 과적합이 발생한다.
+### catboost는 leaf를 고르고 tree를 고르는 ordering principle을 통해 이 문제를 해결한다.
+### 또, catboost는 하나의 categorical value가 지나치게 많은 경우인 one-hot 문제를 자동으로 clustering을 통해 해결해준다.
+### 따라서 사용자가 one-hot variable을 직접 전처리 하는 수고를 덜게 한다.
+### 대표적인 파라미터에는 depth, iterations, loss_function이 있다.
+### depth 파라미터는 트리가 분기되는 깊이를 의미한다. 트리가 깊게(많이) 분기될수록 model prediction accuracy는 커지겠지만 그만큼 model variance 역시 커진다.
+### iterations 파라미터는 만들어지는 트리의 개수를 의미한다. 
+### loss_function은 모델의 성능을 평가하는 지표를 의미한다. 우리의 모델링에선 logloss 값을 사용했다.
+
+ 
+## 문제 1
+
+```{r warning=FALSE, message=FALSE}
+# expand.grid 함수를 사용해 parameter를 designate 하는 dataframe 생성
+logloss_cb<-expand.grid(depth=c(4,6,8),iterations=c(100,200),logloss=NA)
+logloss_cb
+```
+
+## 문제 2
+
+```{r warning=FALSE, message=FALSE}
+# 5 folds 생성
+set.seed(1234)
+idxs<-data$stroke%>%
+  createFolds(k=5)
+# 시간 측정 start
+start.time<-Sys.time()
+# double for loop으로 catboost 파라미터 튜닝을 위한 gridsearch 5-fold CV 진행
+for (i in 1:nrow(logloss_cb)){
+  # 파라미터 설정
+  depth<-logloss_cb[i,'depth']
+  iterations<-logloss_cb[i,'iterations']
+  # gridsearch에서 생성되는 logloss 값을 저장할 변수 생성
+  logloss_combs<-NULL
+  # 파라미터들을 list화
+  fit_params<-list(
+    depth=depth,
+    iterations=iterations,
+    random_seed=1234,
+    loss_function='Logloss'
+    )
+  for (j in 1:length(idxs)){
+    # test data와 train data를 5 folds로 divide
+    test_index<-idxs[[j]]
+    testing_data<-data[test_index,]
+    training_data<-data[-test_index,]
+    # catboost modelling에 적합한 형태로 데이터 형식 변환
+    train_pool<-catboost.load_pool(data=training_data[,-9],label=training_data$stroke,cat_features=c(2,3,4,5,8))
+    test_pool<-catboost.load_pool(data=testing_data[,-9],label=testing_data$stroke,cat_features=c(2,3,4,5,8))
+    # catboost 모델링
+    catboost_model<-catboost.train(learn_pool=train_pool,test_pool=test_pool,params=fit_params)
+    # test data를 모델에 대입해 예측값 생성
+    predicted<-catboost.predict(catboost_model,test_pool)
+    # predicted y와 실제 y를 비교해 logloss 계산
+    real_logloss<-LogLoss(predicted,testing_data$stroke)
+    # 계산된 logloss를 앞서 만든 logloss 저장 변수에 저장
+    logloss_combs<-c(logloss_combs,real_logloss)
+  }
+  # expand.grid로 만든 parameter matrix에 logloss 값 저장
+  logloss_cb[i,'logloss']<-mean(logloss_combs)
+}
+# 시간 측정 end
+print(paste("Time:",Sys.time()-start.time,sep=""))
+logloss_cb
+```
+
+## 문제 3
+
+```{r warning=FALSE, message=FALSE}
+# 가장 낮은 logloss를 갖는 파라미터 조합을 추출
+min_logloss<-
+  logloss_cb%>%
+  filter(logloss==min(logloss))%>%
+  print()
+```
+
+## 문제 4
+
+```{r warning=FALSE, message=FALSE}
+# 추출된 최적 parameter로 실제 모델링 실행
+real_train_pool<-catboost.load_pool(data=data[,-9],label=data$stroke,cat_features=c(2,3,4,5,8))
+real_test_pool<-catboost.load_pool(data=test[,-9],label=test$stroke,cat_features=c(2,3,4,5,8))
+fit_params<-list(depth=min_logloss[1,'depth'],iterations=min_logloss[1,'iterations'],random_seed=1234,loss_function='Logloss')
+real_model<-catboost.train(learn_pool=real_train_pool,test_pool=real_test_pool,params=fit_params)
+predicted<-catboost.predict(real_model,real_test_pool)
+# 그 때 나오는 logloss 값
+LogLoss(predicted,test$stroke)
+```
+
+# CH3 K-means Clustering
+## 문제 1
+
+```{r warning=FALSE}
+# 수치형 변수 scaling
+numeric_data<-data%>%
+  select(c(where(is.numeric),-stroke))
+numeric_data_scale<-scale(numeric_data)
+head(numeric_data_scale)
+```
+
+## 문제 2
+
+```{r warning=FALSE, fig.height=6, fig.width=16}
+library(factoextra)
+library(cluster)
+# elbow 시각화
+t1<-fviz_nbclust(numeric_data_scale,kmeans,method='wss')
+# silhouette 시각화
+t2<-fviz_nbclust(numeric_data_scale,kmeans,method='silhouette')
+grid.arrange(t1,t2,ncol=2)
+```
+
+### Elbow chart에서 그래프의 기울기가 급격하게 변화하는 K값, 즉 K=4가 적절한 K값이다.
+### silhouette chart에서 silhouette with가 가장 높은 K값, 즉 K=4가 적절한 K값이다. 
+
+## 문제 3
+
+```{r warning=FALSE, message=FALSE}
+set.seed(1234)
+# K-means clustering
+k2=kmeans(numeric_data_scale,iter.max=30,nstart=1,centers=3)
+fviz_cluster(k2,data=numeric_data_scale)+theme_classic()
+```
+
+## 문제 4
+
+```{r warning=FALSE, message=FALSE, fig.height=10, fig.width=16}
+# 이미 존재하는 수치형 변수만 있는 matrix를 데이터프레임화
+numeric_dataframe<-as.data.frame(numeric_data)
+# 그 dataframe에 클러스터 값을 element로 갖는 column 추가
+numeric_dataframe$cluster<-k2$cluster
+# 각 변수와 cluster 값만 갖는 dataframe 각각 생성
+age<-numeric_dataframe%>%
+  select(age,cluster)
+avg_glucose_level<-numeric_dataframe%>%
+  select(avg_glucose_level,cluster)
+bmi<-numeric_dataframe%>%
+  select(bmi,cluster)
+# boxplot 시각화
+q1<-age%>%
+  ggplot(aes(x=cluster,y=age))+theme_classic()+geom_boxplot(aes(group=cluster),fill=c('#845ec2','#ffc75f','#ff5e78'),outlier.shape=NA,alpha=0.8,colour=c('#845ec2','#ffc75f','#ff5e78'))+stat_boxplot(geom='errorbar',aes(group=cluster),colour=c('#845ec2','#ffc75f','#ff5e78'))
+q2<-avg_glucose_level%>%
+  ggplot(aes(x=cluster,y=avg_glucose_level))+theme_classic()+geom_boxplot(aes(group=cluster),fill=c('#845ec2','#ffc75f','#ff5e78'),outlier.shape=NA,alpha=0.8,colour=c('#845ec2','#ffc75f','#ff5e78'))+stat_boxplot(geom='errorbar',aes(group=cluster),colour=c('#845ec2','#ffc75f','#ff5e78'))
+q3<-bmi%>%
+  ggplot(aes(x=cluster,y=bmi))+theme_classic()+geom_boxplot(aes(group=cluster),fill=c('#845ec2','#ffc75f','#ff5e78'),outlier.shape=NA,alpha=0.8,colour=c('#845ec2','#ffc75f','#ff5e78'))+stat_boxplot(geom='errorbar',aes(group=cluster),colour=c('#845ec2','#ffc75f','#ff5e78'))
+grid.arrange(q1,q2,q3,ncol=3)
+```
+
+### 각 변수들이 어떤 분포대별로 cluster화 되어 있는지를 알 수 있는 plot이다.
+### age 변수의 경우 약 50-70, 45-65. 15-35세 (rough standard) 별로 그 데이터 값이 모여 있음을 알 수 있다.
+### 비슷하게 bmi 변수의 경우 약 30-40 bmi 지수를 갖는 값들이 서로 몰려있고, bmi지수 약 20-25를 갖는 값들이 모여 있음을 알 수 있다.
+
+
