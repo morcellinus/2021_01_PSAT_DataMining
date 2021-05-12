@@ -1,0 +1,384 @@
+---
+title: "P-SAT 21-1 2주차 패키지과제"
+author: "Jinmo Lee"
+date: '2021 3 17 '
+output: html_document
+---
+# CH1
+## 전처리
+### 문제 0
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(data.table)
+library(VIM)
+setwd("C:/Users/samsung/Desktop/PSAT/2주차패키지")
+data<-fread('data.csv') ## 데이터 불러오기
+head(data)
+```
+
+### 문제 1
+
+```{r}
+## 2로 끝나는 변수 삭제
+
+data<-select(data,-ends_with('2'))
+head(data)
+```
+
+### 문제 2
+
+```{r}
+## 결측치 시각화
+
+aggr(data,prop=F,numbers=T,col=c('lightyellow','pink'))
+```
+
+### -위 두 그래프는 VIM 패키지의 aggr 함수를 통해 시각화 한 그래프로, 다루는 Data의 결측치에 대한 정보를 제공합니다.
+### -왼 쪽 그래프는 결측치가 있는 변수와 각 변수 별 결측치의 개수를 보여줍니다.
+### -revenue1 변수는 관측치가 5개 있고, employee1 변수는 관측치가 12개 있다는 식으로 해석할 수 있습니다.
+### -오른쪽 그래프는 변수별 결측치 조합과 조합별 row의 개수를 보여줍니다.
+### -오른쪽 아래 279라는 숫자는 모든 변수에 결측치가 없는 row가 279개임을 뜻합니다.
+### -그 다음 7은 debt1과 employee1 변수에 결측치가 있는 row가 7개라는 의미입니다. 즉 revenue1 변수에만 결측치가 있는 row는 4개, employee1 변수에만 결측치가 있는 row는 2개, 이런식으로 해석할 수 있습니다.
+
+### 문제 3-1
+
+```{r}
+## NA값을 mean으로 채우기
+
+integer_data<-data%>%
+  select(bedCount:employee1)
+means<-integer_data%>%
+  lapply(mean,na.rm=T)
+integer_data<-replace_na(integer_data,means)
+data[,2:22]<-integer_data
+head(data)
+
+```
+
+### 문제 3-2
+
+```{r}
+## NA값을 mode로 채우기
+
+character_data<-data%>%
+  select(-(bedCount:employee1))
+
+length(which(character_data$OC=='open'))
+length(which(character_data$OC=='close'))
+
+# mode of OC = open
+
+length(which(character_data$ownerChange=='same'))
+length(which(character_data$ownerChange=='change'))
+
+# mode of ownerChange = same
+
+character_data<-
+  replace_na(character_data,list(OC='open',ownerChange='same'))
+data[,c(1,23)]<-character_data
+head(data)
+
+```
+
+
+### 문제 4
+
+```{r}
+data$OC<-ifelse(data$OC=='open',1,0)
+head(data)
+```
+
+### 문제 5
+
+```{r}
+str(data)
+data[,c(7:13,20)]<-lapply(data[,c(7:13,20)],as.numeric)
+str(data)
+```
+
+# ch2
+## 분류모델
+### 문제 1
+
+```{r warning=FALSE, message=FALSE}
+library(caret)
+library(MLmetrics)
+library(randomForest)
+
+## 범주형 변수인 OC와 ownerChange 변수를 각각 factor화
+
+data$OC<-data$OC%>%
+  as.factor()
+data$ownerChange<-ifelse(data$ownerChange=='same',1,0)
+data$ownerChange<-data$ownerChange%>%
+  as.factor()
+
+## 시드 설정
+
+set.seed(1234)
+
+##train-test split
+
+train_idx<-data$OC%>%
+  createDataPartition(p=.3, times=1, list=FALSE)
+test_data<-data[train_idx,]
+train_data<-data[-train_idx,]
+test_y<-test_data$OC
+
+```
+
+### 문제 2
+
+```{r warning=FALSE, message=FALSE}
+##train data를 사용한 로지스틱 모델
+
+logistic<-glm(OC~.,family=binomial(),data=train_data)
+
+## 테스트 데이터를 로지스틱 모델에 적합
+
+predict_logistic<-logistic%>%
+  predict(test_data,type='response')
+
+##예측 값을 factor화 하기 위해 1 또는 0으로 정리
+
+predict_logistic<-ifelse(predict_logistic<0.5,0,1)
+predict_logistic<-as.factor(predict_logistic)
+
+## Accuracy 계산
+Accuracy(predict_logistic,test_data$OC)
+```
+
+### 문제 3
+
+```{r warning=F, message=FALSE}
+## 단계적 선택법으로 feature selection
+logistic2<-step(logistic,direction='both')
+
+## feature selection된 reduced model에 test data 적합
+predict_logistic2<-logistic2%>%
+  predict(test_data,type='response')
+
+## 예측 값을 factor화 하기 위해 1과 0으로 정리
+predict_logistic2<-ifelse(predict_logistic2<0.5,0,1)
+predict_logistic2<-as.factor(predict_logistic2)
+
+## Accuracy 계산
+Accuracy(predict_logistic2,test_data$OC)
+```
+
+### 문제 4
+
+```{r}
+acc_rf<-expand.grid(mtry=c(3,4,5),acc=NA)
+acc_rf
+```
+
+### 문제 5
+
+```{r}
+## selected된 feature만 갖도록 data 바꾸기
+new_data<-get_all_vars(logistic2$formula,data=data)
+set.seed(1234)
+
+## 5-fold cv를 위해 인덱스 추출
+idxs<-new_data$OC%>%
+  createFolds(k=5)
+mt<-acc_rf[,1]
+
+accuracies<-NULL
+
+## 이중 for loop을 사용한 5-fold cv RandomForest Modelling
+for (i in mt){
+  for (j in 1:5){
+    test_index<-idxs[[j]]
+    testing_data<-new_data[test_index,]
+    training_data<-new_data[-test_index,]
+    rf<-randomForest(OC~.,data=training_data,mtry=i,ntree=10)
+    predict_rf<-rf%>%
+      predict(testing_data,type='response')
+    accuracies<-c(accuracies,Accuracy(predict_rf,testing_data$OC))
+  }
+}
+
+## 5-fold cv를 통해 나온 각 mtry당 5개의 accuracy의 평균을 구해 acc_rf에 대입
+accuracies<-matrix(accuracies,5,3)
+max_accuracies<-apply(accuracies,2,mean)
+acc_rf[,2]<-max_accuracies;acc_rf
+```
+
+### 문제 6
+
+```{r}
+## 최대 accuracy를 갖는 행만 추출하여 새로운 변수에 저장
+max_acc_rf<-
+  acc_rf%>%
+  filter(acc==max(acc))%>%
+  print()
+```
+
+### 문제 7
+
+```{r}
+## 처음에 7:3으로 나눈 train, test data들이 selected 된 features만 갖도록 해줌
+new_data_train<-get_all_vars(logistic2$formula,data=train_data)
+new_data_test<-get_all_vars(logistic2$formula,data=test_data)
+
+## 그 데이터를 가지고 새롭게 randomForest modelling, 이 때 5-fold cv randomforest를 통해 찾은 최적 parameters 사용
+rf2<-randomForest(OC~.,data=new_data_train,mtry=max_acc_rf[,1],ntree=10)
+
+## 그 모델에 test data 적합
+best_predict_rf<-rf2%>%
+  predict(new_data_test,type='response')
+
+## 그때의 Accuracy 계산
+Accuracy(best_predict_rf,new_data_test$OC)
+```
+
+```{r}
+## 먼저 variable importance plot을 그려주고 그것의 요소들을 dataframe화
+
+imp<-varImpPlot(rf2,type=2)%>%
+  as.data.frame()
+```
+
+```{r}
+imp$varnames<-rownames(imp)
+imp$importance<-imp$MeanDecreaseGini
+ggplot(imp, aes(x=reorder(varnames, importance), y=importance)) + theme_classic()+
+  geom_point(color='pink') +
+  geom_segment(aes(x=varnames,xend=varnames,y=0,yend=importance),color='pink') +
+  coord_flip()+labs(y='MeanDecreaseGini',x='variable Name')
+```
+
+### -Mean Decrease Gini는 random forest model의 각 tree가 각 feature를 기준으로 분기되는 지점에서 감소하는 불순도의 양을 합산해 모든 트리들의 평균을 낸 값입니다.
+### -따라서 불순도를 많이 감소시키는 feature일수록 그 값이 큽니다.
+### -만들어낸 randon forest model에 쓰인 15개의 feature 중 revenue 1 feature가 트리가 분기될 때 불순도를 가장 많이 낮춘 feature임을 알 수 있습니다.
+### -그에 비해 noi1 feature는 tree 분기시에 불순도를 많이 낮춘 feature가 아닙니다.
+### -Mean Decrease Gini의 상위 그래프에 위치한 feature 들은 OC 타겟 변수의 분류에 큰 영향을 미친 변수들이라고 할 수 있습니다.
+### -우리가 다룬 data의 경우 revenue, sga, noe, employee, profit 정도의 변수가 그러한 것들입니다. 
+
+### -selected된 feature가 동일함에도 불구하고 MeanDecreaseGini의 값이 패키지 문제와 다른 이유를 두고 고민을 많이 했습니다.
+### -k-fold나 random Forest modelling 전에도 시드를 설정하면 값이 바뀜을 확인할 수 있었습니다.
+### -그러나 문제에서 시드를 추가로 설정하라는 지시가 없었기에 시드를 한 번만 설정한 상태로 chunk를 run 했고, 그렇게 도출된 결과임을 알립니다.
+
+# Ch3
+## 회귀모델
+### 문제 1
+
+```{r, warning=FALSE, message=FALSE}
+library(MASS)
+
+## 8:2의 비율로 train-test split
+Btrain_idx<-createDataPartition(Boston$medv, p=.2, times=1, list=FALSE)
+Btest_data<-Boston[Btrain_idx,]
+Btrain_data<-Boston[-Btrain_idx,]
+Btest_y<-Btest_data$medv
+```
+
+### 문제 2
+
+```{r}
+RMSE_rf<-expand.grid(mtry=c(3,4,5),ntree=c(10,100,200),RMSE=NA)
+RMSE_rf
+```
+
+### 문제 3
+
+```{r}
+## 5-fold cv를 위한 인덱스 추출
+
+Boston_idxs<-createFolds(Boston$medv,k=5)
+BostonRMSE<-NULL
+
+#when tree=10
+
+for (i in c(3,4,5)){
+  for (j in 1:5){
+    Boston_test_index<-Boston_idxs[[j]]
+    Boston_testing_data<-Boston[Boston_test_index,]
+    Boston_training_data<-Boston[-Boston_test_index,]
+    Brf<-randomForest(medv~.,data=Boston_training_data,mtry=i,ntree=10)
+    Bpredict_rf<-Brf%>%
+      predict(Boston_testing_data)
+    BostonRMSE<-c(BostonRMSE,(RMSE(Bpredict_rf,Boston_testing_data$medv)))
+  }  
+}
+
+BostonRMSE<-BostonRMSE%>%
+  matrix(5,3)
+mean_RMSE<-apply(BostonRMSE,2,mean)
+RMSE_rf[1:3,3]<-mean_RMSE
+
+
+#when tree=100
+
+BostonRMSE<-NULL
+for (i in c(3,4,5)){
+  for (j in 1:5){
+    Boston_test_index<-Boston_idxs[[j]]
+    Boston_testing_data<-Boston[Boston_test_index,]
+    Boston_training_data<-Boston[-Boston_test_index,]
+    Brf<-randomForest(medv~.,data=Boston_training_data,mtry=i,ntree=100)
+    Bpredict_rf<-Brf%>%
+      predict(Boston_testing_data)
+    BostonRMSE<-c(BostonRMSE,(RMSE(Bpredict_rf,Boston_testing_data$medv)))
+  }  
+}
+
+BostonRMSE<-BostonRMSE%>%
+  matrix(5,3)
+mean_RMSE<-apply(BostonRMSE,2,mean)
+RMSE_rf[4:6,3]<-mean_RMSE
+
+
+#when tree=200
+
+BostonRMSE<-NULL
+for (i in c(3,4,5)){
+  for (j in 1:5){
+    Boston_test_index<-Boston_idxs[[j]]
+    Boston_testing_data<-Boston[Boston_test_index,]
+    Boston_training_data<-Boston[-Boston_test_index,]
+    Brf<-randomForest(medv~.,data=Boston_training_data,mtry=i,ntree=200)
+    Bpredict_rf<-Brf%>%
+      predict(Boston_testing_data)
+    BostonRMSE<-c(BostonRMSE,(RMSE(Bpredict_rf,Boston_testing_data$medv)))
+  }  
+}
+
+BostonRMSE<-BostonRMSE%>%
+  matrix(5,3)
+mean_RMSE<-apply(BostonRMSE,2,mean)
+RMSE_rf[7:9,3]<-mean_RMSE
+RMSE_rf
+```
+
+### 문제 4
+
+```{r}
+## 최소 RMSE를 갖는 행만 추출
+
+min_RMSE_rf<-
+  RMSE_rf%>%
+  filter(RMSE==min(RMSE))%>%
+  print()
+```
+
+### 문제 5
+
+```{r}
+## 최적의 파라미터를 갖고 train 데이터를 사용해 randomForest modelling
+
+Brf2<-randomForest(medv~.,data=Btrain_data,mtry=min_RMSE_rf[,1],ntree=min_RMSE_rf[,2])
+
+## 그 모델에 test data 적합
+Bpredict_rf2<-Brf2%>%
+  predict(Btest_data)
+
+## 그 때의 RMSE 계산
+Boston_test_RMSE<-RMSE(Bpredict_rf2,Btest_y)
+Boston_test_RMSE
+```
+
+
