@@ -1,0 +1,219 @@
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 5 8 '
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+
+finaldata <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/finaldata.csv')
+
+final_index <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/all_index.csv')
+
+finaldata
+
+final_index
+
+finaldata %>%
+  filter(Dominant_sit == '마음이 우울한 날') %>%
+  filter(rounding == '')
+
+joined <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/joined(withNA).csv')
+
+unique(joined$name_kor)
+joined = joined[-which(duplicated(joined$name_kor)),]
+
+joined %>%
+  select(name_kor)
+
+predata <- merge(finaldata, joined, by.x = 'name_kor_x', by.y = 'name_kor', all = TRUE)
+
+predata <- predata %>%
+  filter(mss != '') %>%
+  filter(name != '')
+
+write.csv(predata,'C:/Users/samsung/Desktop/PSAT/주분/beermeta+mss+color2.csv' )
+
+predata %>%
+  select(name_kor_x)
+
+joined %>%
+  select(name_kor) %>%
+  filter(name_kor == '웨스트 코스트 아이피에이')
+
+```
+
+```{r}
+meta_mss_color <- predata
+
+meta_mss_color %>%
+  select(name_kor_x, mss)
+
+colnames(meta_mss_color)
+
+meta_mss_color %>%
+  select(V1.x, name_kor_x, name_eng, style_kor, style_eng, 종류, region_kor, producer_kor_x, producer_eng_x, region_eng, apv, apv_category, ibu, price, info, review_eng, mean_average, mean_review, score, mean_weighted, region_score, apv_score, ibu_score, style_score, score_final, rounding, First_sit_score, Second_sit_score, Third_sit_score, Dominant_sit, idx, mss, color1, color2, color3, color4, color5)
+
+meta_mss_color <- meta_mss_color %>%
+  mutate(Second_Dominant_sit = ifelse(종류 == '에일', '마음이 우울한 날', ifelse(종류 == '포터', '몸이 지치는 날', ifelse(종류 == '쾰쉬', '몸이 지치는 날', ifelse(종류 == '람빅', '몸이 지치는 날', NA))))) %>%
+  mutate(Third_Dominant_sit = ifelse(종류 =='에일', '몸이 지치는 날', ifelse(종류 =='쾰쉬', '마음이 우울한 날', NA)))
+
+meta_mss_color %>%
+  filter(Dominant_sit == '마음이 우울한 날' | Second_Dominant_sit == '마음이 우울한 날' | Third_Dominant_sit == '마음이 우울한 날') %>%
+  select(종류, Dominant_sit, Second_Dominant_sit, Third_Dominant_sit)
+
+meta_mss_color$food <-NA
+meta_mss_color$food <- ifelse(meta_mss_color$종류 =='라거' | meta_mss_color$종류 == '쾰쉬' | meta_mss_color$종류 == '필스너','마른안주, 기름지거나 튀긴음식, 양념이 강한 음식, 지중해풍 음식',ifelse(meta_mss_color$종류 =='스타우트' | meta_mss_color$종류 == '포터' | meta_mss_color$종류 == '람빅','해산물 찜요리, 달달한 디저트 종류, 회',ifelse(meta_mss_color$종류 == '바이젠'|meta_mss_color$종류 == '밀맥주','빵류, 치즈류, 과일안주',ifelse(meta_mss_color$종류 =='에일'|meta_mss_color$종류 == '와인','풍미가 강한 음식, 견과류와 건조과일',''))))
+
+colSums(is.na(meta_mss_color))
+
+No_embedding_filtering <- meta_mss_color %>%
+  select(name, name_kor_x, 종류, style_kor, apv_category, apv, ibu, rounding, Dominant_sit, Second_Dominant_sit, Third_Dominant_sit, food, price, info) %>%
+  rename(사진번호 = name, 맥주이름 = name_kor_x, 종류 = 종류, 상세종류 = style_kor, 도수범주 = apv_category, 도수상세 = apv, ibu = ibu, 특이점수 = rounding, First_Dominant_sit = Dominant_sit, Second_Dominant_sit = Second_Dominant_sit, Third_Dominant_sit = Third_Dominant_sit, 음식 = food, 가격 = price, 맥주정보 = info)
+
+write.csv(No_embedding_filtering, 'C:/Users/samsung/Desktop/PSAT/주분/No_embedding_for_filtering2.csv')
+
+head(No_embedding_filtering)
+
+```
+
+```{r}
+Similarity <- No_embedding_filtering %>%
+  select(맥주이름, 도수상세, ibu, 특이점수)
+
+head(No_embedding_filtering)
+
+write.csv(Similarity, 'C:/Users/samsung/Desktop/PSAT/주분/For_similarity_matrix2.csv')
+
+Clustering <- No_embedding_filtering %>%
+  select(맥주이름, 상세종류, 도수범주, ibu)
+
+Clustering$맥주이름 <- as.factor(Clustering$맥주이름)
+Clustering$상세종류 <- as.factor(Clustering$상세종류)
+Clustering$도수범주 <- as.factor(Clustering$도수범주)
+
+colSums(is.na(Clustering))
+
+view(Clustering)
+
+Clustering <- drop_na(Clustering)
+
+library(factoextra)
+library(cluster)
+
+k2=kmeans(Clustering[,2:4],iter.max=30,nstart=1,centers=5)
+
+t1<-fviz_nbclust(Clustering[,2:4],kmeans,method='wss')
+# silhouette 시각화
+t2<-factoextra::fviz_nbclust(numeric_data_scale,kmeans,method='silhouette')
+gridExtra::grid.arrange(t1,t2,ncol=2)
+
+library(cluster)
+gower_distance <- daisy(Clustering[, 2:4], metric = c("gower"))
+class(gower_distance)
+
+agg_clust_c <- hclust(gower_distance, method = "complete")
+
+plot(agg_clust_c)
+
+plot(agg_clust_c, main = "Agglomerative, complete linkages")
+
+sil_width <- c(NA)
+for(i in 2:8) {
+  pam_fit <- pam(gower_distance, diss = TRUE, k = i)
+  sil_width[i] <- pam_fit$silinfo$avg.width
+}
+
+plot(1:8, sil_width,
+     xlab = "Number of clusters",
+     ylab = "Silhouette Width")
+lines(1:8, sil_width)
+
+k <- 5
+pam_fit <- pam(gower_distance, diss = TRUE, k)
+pam_results <- Clustering %>%
+  mutate(cluster = pam_fit$clustering)
+
+pam_results %>%
+  arrange(cluster)
+
+install.packages('Rtsne')
+
+tsne_obj <- Rtsne(gower_distance, is_distance = TRUE)
+tsne_data <- tsne_obj$Y %>%
+  data.frame() %>%
+  setNames(c("X", "Y")) %>%
+  mutate(cluster = factor(pam_fit$clustering))
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = cluster))
+
+install.packages('dbscan')
+
+library(dbscan)
+
+hdb.model = hdbscan(gower_distance, minPts = 5)
+plot(hdb.model)
+
+```
+
+```{r}
+view(meta_mss_color)
+
+bert <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/bert.csv', encoding = 'UTF-8')
+
+Similarity
+
+bert
+
+data <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/finaldata.csv')
+
+n_distinct(data$name_kor_x)
+
+head(data)
+
+head(bert)
+
+head(joined)
+
+bert = bert[-which(duplicated(bert$name_kor)),]
+
+data = data[-which(duplicated(data$name_kor_x)),]
+
+bert <- bert %>%
+  select(name_kor_x, mss, mmr)
+
+data2 <- merge(bert, data, by = 'name_kor_x')
+
+head(bert)
+
+head(joined)
+
+view(data2)
+
+view(data)
+
+joined <- joined %>%
+  select(name_kor, idx)
+
+merge(data2, joined, by.x = 'name_kor_x', by.y = 'name_kor')
+
+data1 <- data %>%
+  mutate(fuck = str_extract(mean_average, '^\\['))
+
+idx <- which(!is.na(data1$fuck))
+
+data3 <- data1
+
+data3[idx, 15] <- data3[idx, 16]
+
+colnames(data3)
+
+write.csv(data3, 'C:/Users/samsung/Desktop/PSAT/주분/please_please_work.csv' )
+
+data3 <- data3 %>%
+  select(-mean_average, -mean_review, -score, -mean_weighted)
+
+
+```

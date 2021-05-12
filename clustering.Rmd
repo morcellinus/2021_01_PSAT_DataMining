@@ -1,0 +1,486 @@
+---
+title: "Clustering"
+author: "Jinmo Lee"
+date: '2021 5 10 '
+output: html_document
+---
+
+```{r}
+
+data <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/Meta_pca.csv')
+
+data1 <- data %>%
+  select(apv, ibu, score_final)
+
+
+library(cluster)
+library(data.table)
+
+
+data1$style_kor <- as.factor(data1$style_kor)
+
+newdata1 <- mltools::one_hot(as.data.table(data1$style_kor))
+
+data1 <- cbind(newdata1, data1[,2:4])
+
+
+library(dbscan)
+
+idx <- which(is.na(data1$apv))
+data1 <- data1[-idx,]
+idx <- which(is.na(data1$score_final))
+data1 <- data1[-idx,]
+nrow(data1)
+
+colSums(is.na(data1))
+
+res <- optics(data1, minPts = 10)
+res <- extractDBSCAN(res, eps_cl = 0.1)
+hullplot(data1, res)
+res <- extractXi(res, xi = 0.05, minimum = F)
+hullplot(data1, res)
+
+library(cluster)
+
+\
+
+
+```
+
+```{r}
+spectral_clustering <- function(X, nn = 10, n_eig = 3){
+  mutual_knn_graph <- function(X, nn = 10){
+    D <- as.matrix(dist(X)) #matrix of Euclidian disances between data points
+    
+    #initialize the knn matrix
+    knn_mat <- matrix(0,
+                      nrow = nrow(X),
+                      ncol = nrow(X))
+    
+    for (i in 1:nrow(X)){
+      neighbor_index <- order(D[i,])[2:(nn+1)]
+      knn_mat[i,][neighbor_index] <- 1
+    }
+    
+    knn_mat <- knn_mat + t(knn_mat)
+    knn_mat[knn_mat ==2] =1
+    
+    return(knn_mat)
+  }
+  
+  graph_laplacian <- function(W, normalized = TRUE){
+    stopifnot(nrow(W) == ncol(W))
+    g = colSums(W)
+    n = nrow(W)
+    
+    if(normalized){
+      D_half = diag(1/sqrt(g))
+      return(diag(n) - D_half%*%W%*%D_half)
+    }
+    else{
+      return(diag(g) - W)
+    }
+  }
+  
+  W = mutual_knn_graph(X)
+  L = graph_laplacian(W)
+  ei = eigen(L, symmetric = TRUE)
+  n = nrow(L)
+  return(ei$vectors[,(n - n_eig):(n - 1)])
+}
+
+library(tidyverse)
+
+data <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/Meta_pca.csv')
+
+data1 <- data %>%
+  select(name_kor_x,apv, ibu, score_final, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13)
+
+
+data1$apv[is.na(data1$apv)] <- mean(data1$apv, na.rm = TRUE)
+data1$ibu[is.na(data1$ibu)] <- mean(data1$ibu, na.rm = TRUE)
+data1$score_final[is.na(data1$score_final)] <- mean(data1$score_final, na.rm = TRUE)
+
+data1_scale <- scale(data1[,-1])
+
+X_sc <- spectral_clustering(data1_scale)
+
+t1<-factoextra::fviz_nbclust(X_sc,kmeans,method='silhouette')
+t2 <- factoextra::fviz_nbclust(X_sc,kmeans,method='wss')
+
+gridExtra::grid.arrange(t1, t2)
+
+X_sc_Kmeans <- kmeans(X_sc, 4)
+
+names <- data1$name_kor_x
+
+data1 <- data1[,-1]
+
+factoextra::fviz_cluster(X_sc_Kmeans, data = data1)
+
+data_frame <- as.data.frame(X_sc)
+data_frame$cluster <- X_sc_Kmeans$cluster
+
+clustering <- cbind(names, data_frame)
+
+names(clustering) <- c('names', 'eigenvector1', 'eigenvector2', 'eigenvector3', 'cluster')
+
+head(clustering)
+
+clustering %>%
+  group_by(cluster)%>%
+  summarise(count = n())
+
+plot(data1_scale)
+
+head(clustering, 20)
+
+t2
+
+```
+
+```{r}
+data <- data %>%
+  select(-V1, -V1)
+
+cluster_merged <- merge(data, clustering, by.x = 'name_kor_x', by.y = 'names')
+
+write.csv(cluster_merged, 'C:/Users/samsung/Desktop/PSAT/주분/for_clustering.csv')
+
+cluster_merged %>%
+  select(name_kor_x, 종류, apv, ibu, rounding, cluster) %>%
+  arrange(cluster) %>%
+  group_by(cluster) %>%
+  summarise(count = n())
+
+?boxplot
+colnames(cluster_merged)
+
+colnames(cluster_merged)
+
+Filtering_data <- cluster_merged %>%
+  select(name_kor_x, 종류, style_kor, region_kor, producer_kor_x, apv, apv_category, ibu, price, info, score_final, rounding, First_sit_score, Second_sit_score, Third_sit_score, Dominant_sit)
+
+names(Filtering_data) <- c('맥주이름', '종류', '상세종류', '제조국가', '제조사', '도수', '도수범주', 'ibu', '가격', '맥주정보', '특이함점수', '점수', '상황1점수', '상황2점수', '상황3점수', '상황1')
+
+head(Filtering_data)
+
+Filtering_data <- Filtering_data %>%
+  mutate(Second_Dominant_sit = ifelse(종류 == '에일', '마음이 우울한 날', ifelse(종류 == '포터', '몸이 지치는 날', ifelse(종류 == '쾰쉬', '몸이 지치는 날', ifelse(종류 == '람빅', '몸이 지치는 날', NA))))) %>%
+  mutate(Third_Dominant_sit = ifelse(종류 =='에일', '몸이 지치는 날', ifelse(종류 =='쾰쉬', '마음이 우울한 날', NA)))
+
+Filtering_data$food <-NA
+Filtering_data$food <- ifelse(Filtering_data$종류 =='라거' | Filtering_data$종류 == '쾰쉬' | Filtering_data$종류 == '필스너','마른안주, 기름지거나 튀긴음식, 양념이 강한 음식, 지중해풍 음식',ifelse(Filtering_data$종류 =='스타우트' | Filtering_data$종류 == '포터' | Filtering_data$종류 == '람빅','해산물 찜요리, 달달한 디저트 종류, 회',ifelse(Filtering_data$종류 == '바이젠'|Filtering_data$종류 == '밀맥주','빵류, 치즈류, 과일안주',ifelse(Filtering_data$종류 =='에일'|Filtering_data$종류 == '와인','풍미가 강한 음식, 견과류와 건조과일',''))))
+
+head(Filtering_data)
+
+names(Filtering_data) <- c('맥주이름', '종류', '상세종류', '제조국가', '제조사', '도수', '도수범주', 'ibu', '가격', '맥주정보', '특이함점수', '점수', '상황1점수', '상황2점수', '상황3점수', '상황1', '상황2', '상황3', '음식')
+  
+```
+
+```{r}
+Feeling <- Filtering_data %>%
+  select(맥주이름, 종류, 상세종류, 제조국가, 제조사, 도수, ibu, 가격, 맥주정보, 점수, 상황1, 상황2, 상황3)
+
+write.csv(Feeling, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_total.csv')
+
+Feeling_joy <- Feeling %>%
+  filter(상황1 == '기쁜 날'|상황2 == '기쁜 날'|상황3 == '기쁜 날')
+
+summary(Feeling_joy$점수)
+
+Feeling_joy <- Feeling_joy %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 == 2| 점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Feeling_tired <- Feeling %>%
+  filter(상황1 == '몸이 지치는 날'|상황2 == '몸이 지치는 날'|상황3 == '몸이 지치는 날')
+
+Feeling_tired <- Feeling_tired %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 == 2| 점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+head(Feeling_tired)
+
+Feeling_sad <- Feeling %>%
+  filter(상황1 == '마음이 우울한 날'|상황2 == '마음이 우울한 날'|상황3 == '마음이 우울한 날')
+
+summary(Feeling_sad$점수)
+
+Feeling_sad <- Feeling_sad %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 == 2| 점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+head(Feeling_sad)
+
+nrow(Feeling_joy)
+
+write.csv(Feeling_joy, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_joy.csv')
+write.csv(Feeling_sad, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_sad.csv')
+write.csv(Feeling_tired, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_tired.csv')
+
+Food <- Filtering_data %>%
+  select(맥주이름, 종류, 상세종류, 제조국가, 제조사, 도수, ibu, 가격, 맥주정보, 점수, 음식)
+
+summary(Food$점수)
+
+Food <- Food %>%
+  mutate(음식1 = str_extract(음식, '[^,]+,')) %>%
+  mutate(음식1 = str_extract(음식1, '[^,]+')) %>%
+  mutate(음식2 = str_extract(음식, ', [^,]+,')) %>%
+  mutate(음식2 = str_extract(음식2, '([^,])+')) %>%
+  mutate(음식3 = str_extract(음식, '(과일|양|회).+')) %>%f
+  mutate(음식3 = str_extract(음식3, '[^ ].+(주|한 음식)')) %>%
+  mutate(음식4 = str_extract(음식, '(지중).+'))
+
+Food$음식2[which(Food$음식1 == '풍미가 강한 음식')] <- '견과류와 건조과일'
+
+Food$음식2 <- str_trim(Food$음식2)
+
+Food <- Food %>%
+  select(-음식)
+
+Food_bread <- Food %>%
+  filter(음식1 == '빵류')
+
+Food_dry <- Food %>%
+  filter(음식1 == '마른안주')
+
+Food_seafood <- Food %>%
+  filter(음식1 == '해산물 찜요리')
+
+Food_rich <- Food %>%
+  filter(음식1 == '풍미가 강한 음식')
+
+Food_cheese <- Food %>%
+  filter(음식2 == '치즈류')
+
+Food_fry <- Food %>%
+  filter(음식2 == '기름지거나 튀긴음식')
+
+Food_nuts <- Food %>%
+  filter(음식2 == '견과류와 건조과일')
+
+Food_sweets <- Food %>%
+  filter(음식2 == '달달한 디저트 종류')
+
+Food_fruits <- Food %>%
+  filter(음식3 == '과일안주')
+
+Food_spicy <- Food %>%
+  filter(음식3 == '양념이 강한 음식')
+
+Food_med <- Food %>%
+  filter(음식4 == '지중해풍 음식')
+
+summary(Food_med$점수)
+
+Food_bread <- Food_bread %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 == 2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_dry <- Food_dry %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 == 2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_seafood <- Food_seafood %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 ==2|점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_rich <- Food_rich %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 ==2, '2Q', ifelse(점수 ==3|점수 == 4, '3Q', '4Q'))))
+
+Food_cheese <- Food_cheese %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 ==2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_fry <- Food_fry %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 ==2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_nuts <- Food_nuts %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 ==2|점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_sweets <- Food_sweets %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1, '1Q', ifelse(점수 ==2|점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_fruits <- Food_fruits %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 ==2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_spicy <- Food_spicy %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 ==2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+Food_med <- Food_med %>%
+  mutate(Quantile = ifelse(점수 == 0|점수 == 1|점수 ==2, '1Q', ifelse(점수 ==3, '2Q', ifelse(점수 == 4, '3Q', '4Q'))))
+
+head(Food_med)
+
+write.csv(Food_bread, 'C:/Users/samsung/Desktop/PSAT/주분/food_bread.csv')
+write.csv(Food_dry, 'C:/Users/samsung/Desktop/PSAT/주분/food_dry.csv')
+write.csv(Food_seafood, 'C:/Users/samsung/Desktop/PSAT/주분/food_seafood.csv')
+write.csv(Food_rich, 'C:/Users/samsung/Desktop/PSAT/주분/food_rich.csv')
+write.csv(Food_cheese, 'C:/Users/samsung/Desktop/PSAT/주분/food_cheese.csv')
+write.csv(Food_fry, 'C:/Users/samsung/Desktop/PSAT/주분/food_fry.csv')
+write.csv(Food_nuts, 'C:/Users/samsung/Desktop/PSAT/주분/food_nuts.csv')
+write.csv(Food_sweets, 'C:/Users/samsung/Desktop/PSAT/주분/food_sweets.csv')
+write.csv(Food_fruits, 'C:/Users/samsung/Desktop/PSAT/주분/food_fruits.csv')
+write.csv(Food_spicy, 'C:/Users/samsung/Desktop/PSAT/주분/food_spicy.csv')
+write.csv(Food_med, 'C:/Users/samsung/Desktop/PSAT/주분/food_med.csv')
+write.csv(Food, 'C:/Users/samsung/Desktop/PSAT/주분/food_total.csv')
+
+pearson <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/피어슨유사도.csv', header=T)
+
+head(pearson)
+
+test <- Feeling_tired %>%
+  filter(Quantile == '3Q')
+
+
+index <- which(Feeling_joy$Quantile == '1Q')
+
+a<- Feeling_tired$맥주이름[index]
+
+
+test <- pearson %>%
+  filter(name_kor_x == '1664 블랑') %>%
+  select(a)
+
+colnames(sort(test, decreasing = T)[,1:10])
+
+
+Filtering_data %>%
+  select(종류, 상황1, 상황2, 상황3)
+
+cosine <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/코사인유사도.csv', header=T)
+
+index <- which(Feeling_joy$Quantile == '1Q')
+
+b <- Feeling_joy$맥주이름[index]
+
+b <- b[-which(is.na(b))]
+
+view(b)
+
+test2 <- cosine %>%
+  filter(name_kor_x == '1664 블랑') %>%
+  select(b)
+
+ncol(cosine)
+
+cosine$name_kor_x
+
+colnames(sort(test2, decreasing = T)[,1:10])
+
+```
+
+```{r}
+colnames(Food_bread)
+nrow(Food_bread)
+colnames(clustering)
+Food_bread <- merge(Food_bread, clustering, by.x = '맥주이름', by.y = 'names')
+head(Food_bread)
+
+Food_bread <- Food_bread %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식2, -음식3, -음식4) %>%
+  mutate(음식 = 음식1)
+
+Food_cheese <- merge(Food_cheese, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_cheese <- Food_cheese %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식1, -음식3, -음식4) %>%
+  mutate(음식 = 음식2)
+
+Food_dry <- merge(Food_dry, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_dry <- Food_dry %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식2, -음식3, -음식4) %>%
+  mutate(음식 = 음식1)
+
+Food_fruits <- merge(Food_fruits, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_fruits <- Food_fruits %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식2, -음식1, -음식4) %>%
+  mutate(음식 = 음식3)
+
+Food_fry <- merge(Food_fry, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_fry <- Food_fry %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식3, -음식1, -음식4) %>%
+  mutate(음식 = 음식2)
+
+Food_med <- merge(Food_med, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_med <- Food_med %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식3, -음식1, -음식2) %>%
+  mutate(음식 = 음식4)
+
+Food_nuts <- merge(Food_nuts, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_nuts <- Food_nuts %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식3, -음식1, -음식4) %>%
+  mutate(음식 = 음식2)
+
+Food_rich <- merge(Food_rich, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_rich <- Food_rich %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식3, -음식2, -음식4) %>%
+  mutate(음식 = 음식1)
+
+Food_seafood <- merge(Food_seafood, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_seafood <- Food_seafood %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식3, -음식2, -음식4) %>%
+  mutate(음식 = 음식1)
+
+Food_spicy <- merge(Food_spicy, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_spicy <- Food_spicy %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식1, -음식2, -음식4) %>%
+  mutate(음식 = 음식3)
+
+Food_sweets <- merge(Food_sweets, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_sweets <- Food_sweets %>%
+  select(-eigenvector1, eigenvector2, eigenvector3, -음식1, -음식3, -음식4) %>%
+  mutate(음식 = 음식2)
+
+Food <- merge(Food, clustering, by.x = '맥주이름', by.y = 'names')
+
+Food_sweets <- Food_sweets %>%
+  select(-eigenvector2, -eigenvector3)
+
+
+
+write.csv(Food_bread, 'C:/Users/samsung/Desktop/PSAT/주분/food_bread2.csv')
+write.csv(Food_dry, 'C:/Users/samsung/Desktop/PSAT/주분/food_dry2.csv')
+write.csv(Food_seafood, 'C:/Users/samsung/Desktop/PSAT/주분/food_seafood2.csv')
+write.csv(Food_rich, 'C:/Users/samsung/Desktop/PSAT/주분/food_rich2.csv')
+write.csv(Food_cheese, 'C:/Users/samsung/Desktop/PSAT/주분/food_cheese2.csv')
+write.csv(Food_fry, 'C:/Users/samsung/Desktop/PSAT/주분/food_fry2.csv')
+write.csv(Food_nuts, 'C:/Users/samsung/Desktop/PSAT/주분/food_nuts2.csv')
+write.csv(Food_sweets, 'C:/Users/samsung/Desktop/PSAT/주분/food_sweets2.csv')
+write.csv(Food_fruits, 'C:/Users/samsung/Desktop/PSAT/주분/food_fruits2.csv')
+write.csv(Food_spicy, 'C:/Users/samsung/Desktop/PSAT/주분/food_spicy2.csv')
+write.csv(Food_med, 'C:/Users/samsung/Desktop/PSAT/주분/food_med2.csv')
+write.csv(Food, 'C:/Users/samsung/Desktop/PSAT/주분/food_total2.csv')
+
+Feeling_sad <- merge(Feeling_sad, clustering, by.x = '맥주이름', by.y = 'names')
+
+Feeling_sad <- Feeling_sad %>%
+  select(-eigenvector1, -eigenvector2, -eigenvector3)
+
+pearson <- merge(pearson, clustering, by.x = 'name_kor_x', by.y = 'names')
+
+pearson <- pearson %>%
+  select(-eigenvector1, -eigenvector2, -eigenvector3)
+
+write.csv(Feeling_sad, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_sad2.csv')
+write.csv(Feeling_joy, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_joy2.csv')
+write.csv(Feeling_tired, 'C:/Users/samsung/Desktop/PSAT/주분/feeling_tired2.csv')
+write.csv(pearson, 'C:/Users/samsung/Desktop/PSAT/주분/피어슨유사도2.csv')
+
+
+special <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/특이함점수추가.csv', encoding = 'UTF-8')
+
+special %>%
+  select(name_kor_x, region_score, apv_score, ibu_score, style_score, score_final) %>%
+  head(30)
+
+data %>%
+  select(score_final) %>%
+  ggplot() + theme_classic() + geom_boxplot(aes(y = score_final))
+
+
+```

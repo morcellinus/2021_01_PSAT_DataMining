@@ -1,0 +1,63 @@
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 4 27 '
+output: html_document
+---
+
+```{r}
+topic_by_style <- data.table::fread('C:/Users/samsung/Desktop/pre_dataset_ibu.csv', encoding = 'UTF-8')
+
+library(tidyverse)
+
+topic_by_style <- topic_by_style %>%
+  mutate(종류 = str_extract(style_kor, '(에일|라거|스타우트|포터|필스너|발리와인|람빅)'))
+
+topic_by_style %>%
+  select(V1, apv) %>%
+  mutate(apv1 = str_extract(apv, '~')) %>%
+  filter(apv1 == '~')
+
+topic_by_style$apv[c(23, 24, 788)] <- c('5.5', '4.5', '0.125')
+
+topic_by_style$apv <- as.numeric(topic_by_style$apv)
+
+topic_by_style %>%
+  select(V1, ibu) %>%
+  mutate(ibu1 = str_extract(ibu, '~')) %>%
+  filter(ibu1 == '~')
+
+topic_by_style$ibu[c(789, 891, 893, 896, 897)] <- c('13', '8.5', '8.5', '52.5', '25')
+
+topic_by_style$ibu <- as.numeric(topic_by_style$ibu)
+
+topic_by_style <- topic_by_style %>%
+  separate(price, c('p1', 'p2'), '~') %>%
+  mutate(p1 = str_extract(p1, '([0-9]{1,2}),([0-9]{3})')) %>%
+  mutate(p2 = str_extract(p2, '([0-9]{1,2}),([0-9]{3})')) %>%
+  mutate(p31 = str_extract(p1, '[0-9]{1,2}')) %>%
+  mutate(p32 = str_extract(p1, '[0-9]{3}$')) %>%
+  mutate(p41 = str_extract(p2, '[0-9]{1,2}')) %>%
+  mutate(p42 = str_extract(p2, '[0-9]{3}$')) %>%
+  select(-p1, -p2) %>%
+  mutate(p11 = str_c(p31, p32)) %>%
+  mutate(p12 = str_c(p41, p42)) %>%
+  select(-p31, -p32, -p41, -p42)
+
+topic_by_style$p11 <- as.numeric(topic_by_style$p11)
+topic_by_style$p12 <- as.numeric(topic_by_style$p12)
+
+topic_by_style <- topic_by_style %>%
+  mutate(price = ifelse(is.na(p12), p11, (p11+p12)/2)) %>%
+  select(-p11, -p12)
+
+topic_by_style <- topic_by_style %>%
+  select(V1, name_kor_x, name_eng, producer_kor_x, producer_eng_x, region_kor, region_eng, style_kor, style_eng, apv, ibu, price, 종류, info, review_eng, mean_average, mean_review, score, mean_weighted)
+
+write.csv(topic_by_style, 'C:/Users/samsung/Desktop/최종전처리데이터셋.csv')
+  
+```
+
+```{r}
+topic_by_style
+```

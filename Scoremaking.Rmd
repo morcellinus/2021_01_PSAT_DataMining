@@ -1,0 +1,188 @@
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 5 5 '
+output: html_document
+---
+
+```{r}
+data <- data.table::fread ('C:/Users/samsung/Desktop/PSAT/주분/최종+도수범주추가.csv')
+
+library(tidyverse)
+
+data %>%
+  select(style_kor, 종류) %>%
+  group_by(style_kor, 종류) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+data %>%
+  select(style_kor, 종류) %>%
+  mutate(종류1 = str_extract(style_kor, '(에일|라거|스타우트|포터|필스너|발리와인|람빅|세종|복|윗비어|쾰쉬|위트 비어|바이젠|트리펠|라들러|무알콜 맥주|와인|헤페|프룻 비어|쿼드루펠|브륀|허브 비어|고제|둔켈|고제|듀벨|두벨|크릭|벨지안 블론드|바이세|사워 레드|괴즈|세션 비어|라이 비어|잉글리쉬 비터|이탈리안 체스넛|스모크드 비어|옥토버페스트|슈바르츠비어|프리미엄 비터|켈러비어|위트|캘리포니아 커먼|글루텐 프리|샴페인 비어|사워 레드)'))
+
+발리와인 - 와인
+세종 - 에일
+윗비어, 위트비
+```
+발리와인 - 와인
+람빅 - 람빅
+세종 - 에일
+윗비어 - 밀맥주
+쾰쉬 - 쾰쉬
+위트 비어 - 밀맥주
+바이젠 - 바이젠
+트리펠 - 에일
+라들러 - 라거
+무알콜 맥주 - 무알콜 맥주
+와인 - 와인
+헤페 - 바이젠
+프룻 비어 - 에일
+쿼드루펠 - 에일
+브륀 - 에일
+허브 비어 - 에일
+고제 - 에일
+둔켈 - 바이젠
+듀벨 - 에일
+두벨 - 에일
+크릭 - 라거
+벨지안 블론드 - 에일
+바이세 - 바이젠
+사워 레드 - 에일
+괴즈 - 람빅
+세션 비어 - 에일
+라이 비어 - 에일
+잉글리쉬 비터 - 에일
+이탈리안 체스넛 - 스아투으
+스모크드 비어 - 바이젠
+옥토버 페스트 - 바이젠
+슈바르츠 비어 - 바이젠
+프리미엄 비터 - 에일
+켈러 비어 - 라거
+위트 - 밀맥주
+캘리포니아 커먼 - 라거
+글루텐 프리 - 에일
+샴페인 비어 - 에일
+사워 레드 - 에일
+
+```{r}
+column <- data %>%
+  select(style_kor, 종류) %>%
+  mutate(종류1 = str_extract(style_kor, '(에일|라거|스타우트|포터|필스너|발리와인|람빅|세종|복|윗비어|쾰쉬|위트 비어|바이젠|트리펠|라들러|무알콜 맥주|와인|헤페|프룻 비어|쿼드루펠|브륀|허브 비어|고제|둔켈|고제|듀벨|두벨|크릭|벨지안 블론드|바이세|사워 레드|괴즈|세션 비어|라이 비어|잉글리쉬 비터|이탈리안 체스넛|스모크드 비어|옥토버페스트|슈바르츠비어|프리미엄 비터|켈러비어|위트|캘리포니아 커먼|글루텐 프리|샴페인 비어|사워 레드|바이스|라이스 비어)')) %>%
+  mutate(종류2 = ifelse(종류1 == '에일' | 종류1 == '세종' | 종류1 == '프룻 비어' | 종류1 == '쿼드루펠' | 종류1 == '브륀' | 종류1 == '허브 비어' | 종류1 == '고제' | 종류1 == '듀벨' | 종류1 == '두벨' | 종류1 == '벨지안 블론드' | 종류1 == '사워 레드' | 종류1 == '세션 비어' | 종류1 == '라이 비어' | 종류1 == '잉글리쉬 비터' | 종류1 == '글루텐 프리' | 종류1 == '샴페인 비어' | 종류1 == '사워 레드'|종류1 == '프리미엄 비터'|종류1 == '트리펠'|종류1 == '라이스 비어', '에일', ifelse(종류1 == '라거' | 종류1 == '라들러' | 종류1 == '크릭' | 종류1 == '켈러비어' | 종류1 == '캘리포니아 커먼'| 종류1 == '복', '라거', ifelse(종류1 == '스타우트'| 종류1 == '이탈리안 체스넛', '스타우트', ifelse(종류1 == '포터', '포터', ifelse(종류1 == '필스너', '필스너', ifelse(종류1 == '발리와인' | 종류1 == '와인', '와인', ifelse(종류1 == '람빅'|종류1 == '괴즈', '람빅', ifelse(종류1 == '윗비어'| 종류1 == '위트 비어' | 종류1 == '위트', '밀맥주', ifelse(종류1 == '바이젠' | 종류1 == '헤페' | 종류1 == '바이세'| 종류1 == '둔켈'| 종류1 == '스모크드 비어'|종류1 == '옥토버 페스트'|종류1 == '슈바르츠비어'|종류1 == '옥토버페스트'|종류1 == '바이스', '바이젠', ifelse(종류1 == '무알콜 맥주', '무알콜맥주', ifelse(종류1 == '쾰쉬', '쾰쉬', 'FUCKYOU'))))))))) ) ))
+
+column <- column %>%
+  select(종류2)
+
+dataset <- cbind(data, column)
+
+dataset <- dataset %>%
+  select(-c(V1,종류))
+
+dataset <- dataset %>%
+  rename(종류 = 종류2)
+
+dataset
+
+write_csv(dataset, 'C:/Users/samsung/Desktop/PSAT/주분/제발마지막.csv')
+
+
+region_score = dataset %>%
+  select(region_kor) %>%
+  group_by(region_kor) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  mutate(total = 1-(count/1168))
+
+mean(dataset$apv, na.rm = TRUE)
+sd(dataset$apv, na.rm = TRUE)
+
+dataset %>%
+  group_by(apv) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  filter(!is.na(apv))
+
+boxplot(dataset$apv, na.rm = TRUE)
+
+f = dataset %>%
+  select(apv) %>%
+  mutate(sqaure = abs(apv-5)) %>%
+  mutate(apv_score = (sqaure-min(sqaure, na.rm = TRUE))/(max(sqaure, na.rm=TRUE)-min(sqaure, na.rm=TRUE)))
+
+f %>%
+  select(a) %>%
+  boxplot()
+
+
+
+dataset %>%
+  group_by(ibu) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  filter(!is.na(ibu))
+
+mean(dataset$ibu, na.rm=TRUE)
+
+i = dataset %>%
+  select(ibu) %>%
+  mutate(ibuscale = abs(ibu - 35.8)) %>%
+  mutate(norm = (ibuscale - min(ibuscale, na.rm = TRUE))/(max(ibuscale, na.rm = TRUE)-min(ibuscale, na.rm=TRUE)))
+
+
+f
+
+dataset1 = merge(dataset, region_score, by = 'region_kor')
+dataset2 = cbind(dataset1, f$apv_score)
+
+dataset3 = cbind(dataset2, i$norm)
+
+dataset2 <- dataset2 %>%
+  mutate(apv_score = V2) %>%
+  select(-V2)
+
+dataset3 <- dataset3 %>%
+  mutate(ibu_score = V2) %>%
+  select(-V2)
+
+i
+
+style_score = dataset %>%
+  group_by(style_kor) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  mutate(style_score = 1-count/1168)
+
+dataset4 = merge(dataset3, style_score, by = 'style_kor')
+
+dataset3 <- dataset3[,22] %>%
+  rename(apv_score = V2)
+
+names(dataset3)[names(dataset3) == 'total'] = 'region_score'
+
+colnames(dataset3)
+
+dataset4 <- dataset4 %>%
+  select(-count.x, -count.y)
+
+dataset5 <- dataset4 %>%
+  mutate(special_score = region_score*0.35+apv_score*0.35+ibu_score*0.2+style_score*0.1)
+
+boxplot(dataset5$special_score)
+
+dataset5<- dataset5 %>%
+  mutate(score_final = 10*(special_score-min(special_score, na.rm = TRUE))/(max(special_score,na.rm=TRUE)-min(special_score, na.rm=TRUE)))
+
+dataset6 <- dataset5 %>%
+  mutate(rounding = round(score_final))
+
+boxplot(dataset5$score_final)
+
+dataset6 <- dataset6 %>%select(-special_score)
+
+write_csv(dataset6, 'C:/Users/samsung/Desktop/PSAT/주분/특이함점수추가.csv', encoding = 'CP949')
+
+Feeling_joy <- merge(Feeling_joy, clustering, by.x = '맥주이름', by.y = 'name')
+
+head(Feeling_joy)
+
+```

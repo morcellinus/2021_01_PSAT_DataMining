@@ -1,0 +1,112 @@
+---
+title: "Untitled"
+author: "Jinmo Lee"
+date: '2021 5 7 '
+output: html_document
+---
+
+```{r}
+prop.test(x = 145, n = 205, p = 0.5, alternative = 'greater')
+```
+
+```{r}
+prop.test(x = 155,n = 205, p = 0.5, alternative = 'greater')
+```
+```{r}
+apv1<- 0.049
+apv2 <- 0.093
+apv3 <- 0.098
+apv4 <- 0.161
+apv5 <- 0.6
+
+y <- c(apv1, apv2, apv3, apv4, apv5)
+level = c(1,2,3,4,5)
+level = factor(level)
+group_df = data.frame(y, level)
+oneway.test(y ~ level, data = group_df)
+```
+
+```{r}
+testdata = data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/상황별 문답☆(응답) - 설문지 응답 시트1.csv', encoding = 'UTF-8')
+
+first_test = testdata[,4]
+
+factor_level = as.factor(first_test)
+
+factor_level
+
+names(first_test) <- 'alcohol'
+
+anova_df1 <- first_test %>%
+  mutate(level = alcohol)
+
+anova_df1$level = as.factor(anova_df1$level)
+
+anova_df1 <- anova_df1 %>%
+  mutate(alcohol = ifelse(alcohol == "1~5도  (*사진은 도수를 가늠해 보기위한 예시입니다)", 3, ifelse(alcohol == "5~10도  (*사진은 도수를 가늠해 보기위한 예시입니다)", 8, ifelse(alcohol == "13도 초과 (*사진은 도수를 가늠해 보기위한 예시입니다)", 13.6, ifelse(alcohol ==  "10~13도 (*사진은 도수를 가늠해 보기위한 예시입니다)" , 11.5, ifelse(alcohol == "무알콜 (*사진은 도수를 가늠해 보기위한 예시입니다)", 0, '몰라'))))))
+
+anova_df1$alcohol <- as.numeric(anova_df1$alcohol)
+
+summary(aov(alcohol ~ level, data = anova_df1))
+```
+
+```{r}
+flavor = c('sweet', 'bitter', 'hoppy', 'light', 'clear', 'herbal', 'lemon', 'earthy', 'mild', 'creamy', 'grainy', 'frothy', 'pineapple', 'sugary', 'floral', 'caramel', 'heavy', 'deep', 'strong', 'roasty', 'chocolate', 'grassy', 'banana', 'bready', 'rich')
+sit1 <- c(51, 24, 24, 111, 111, 13, 38, 13, 111, 26, 24, 26, 38, 51, 38, 16, 17, 28, 17, 6, 16, 13, 26, 6, 28)
+
+sit2 <- c(20, 73, 73, 39, 39, 9, 10, 9, 39, 23, 73, 23, 10, 20, 10, 10, 49, 59, 49, 17, 10, 9, 23, 17, 59)
+
+sit3 <- c(52, 14, 14, 80, 80, 20, 50, 20, 80, 58, 14, 58, 50, 52, 50, 23, 17, 40, 17, 10, 23, 20, 58, 10, 40)
+
+sit_score = data.frame(flavor, sit1, sit2, sit3)
+
+sit_score <- sit_score %>%
+  mutate(sit1 = ifelse(flavor == 'sweet', sit1*0.9, ifelse(flavor == 'bitter', sit1*0.925, ifelse(flavor == 'hoppy' | flavor == 'light', sit1*0.95, ifelse(flavor == 'clear' | flavor == 'herbal'| flavor == 'lemon', sit1*0.975, ifelse(flavor == 'earthy'| flavor == 'mild'| flavor == 'creamy'| flavor == 'grainy'|flavor == 'frothy', sit1, sit1*1.1)))))) %>%
+  mutate(sit2 = ifelse(flavor == 'sweet', sit2*0.9, ifelse(flavor == 'bitter', sit2*0.925, ifelse(flavor == 'hoppy' | flavor == 'light', sit2*0.95, ifelse(flavor == 'clear' | flavor == 'herbal'| flavor == 'lemon', sit2*0.975, ifelse(flavor == 'earthy'| flavor == 'mild'| flavor == 'creamy'| flavor == 'grainy'|flavor == 'frothy', sit2, sit2*1.1)))))) %>%
+  mutate(sit3 = ifelse(flavor == 'sweet', sit3*0.9, ifelse(flavor == 'bitter', sit3*0.925, ifelse(flavor == 'hoppy' | flavor == 'light', sit3*0.95, ifelse(flavor == 'clear' | flavor == 'herbal'| flavor == 'lemon', sit3*0.975, ifelse(flavor == 'earthy'| flavor == 'mild'| flavor == 'creamy'| flavor == 'grainy'|flavor == 'frothy', sit3, sit3*1.1))))))
+
+
+view(sit_score)
+
+
+```
+
+```{r}
+finaldata <- data.table::fread('C:/Users/samsung/Desktop/PSAT/주분/특이함점수추가.csv', encoding = 'UTF-8')
+
+finaldata
+종류 <- c('에일', '라거', '스타우트', '포터', '밀맥주', '필스너', '바이젠', '쾰쉬', '람빅', '와인')
+First_sit_score <- c(169.75, 410.375, 142.9, 229.825, 429.825, 234.65, 194.275, 238.925, 170.65, 108.075)
+Second_sit_score <- c(175.625, 210.6, 276.925, 165.35, 209.35, 274.825, 120.075, 230.375, 56.75, 238.25)
+Third_sit_score <- c(176.8, 319.05, 152.15, 238.55, 342.5, 185.05, 303.3, 230.1, 197.35, 120.75)
+Dominant_sit <- c('기쁜 날', '몸이 지치는 날', '마음이 우울한 날', '기쁜 날', '몸이 지치는 날', '마음이 우울한 날', '기쁜 날', '몸이 지치는 날', '기쁜 날', '마음이 우울한 날')
+
+scores <- data.frame(종류, First_sit_score, Second_sit_score, Third_sit_score, Dominant_sit)
+
+scores
+
+finaldata <- merge(finaldata, scores, by = '종류', all = TRUE)
+
+scores
+
+colnames(finaldata)
+
+joy_data = finaldata %>
+  filter(Dominant_sit =='기쁜 날')
+
+joy_data <- joy_data %>%
+  mutate(Quantile = ifelse(rounding == 0|rounding == 1, '1Q', ifelse(rounding == 2| rounding ==3, '2Q', ifelse(rounding == 4, '3Q', '4Q'))))
+
+
+
+
+
+  
+  
+
+```
+
+```{r}
+write.csv(finaldata, 'C:/Users/samsung/Desktop/PSAT/주분/finaldata.csv' )
+```
+
