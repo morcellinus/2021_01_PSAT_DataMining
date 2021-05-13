@@ -8,5 +8,6 @@
 
 을 기록합니다.
 </br>
-|패키지 : Maching Learning Modelling, Data Visualization 
+
+|패키지 : Maching Learning Modelling, Data Visualization</br>
 |주제분석 : 맥주 추천 시스템 구현 with python
